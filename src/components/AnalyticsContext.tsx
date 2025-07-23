@@ -1,81 +1,54 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
-// Mock data for company-wide analytics
-const mockCompanyData = {
-  totalResumes: 12847,
-  totalCompanies: 156,
-  totalUsers: 423,
-  processingAccuracy: 99.2,
-  avgProcessingTime: 2.3,
-  monthlyGrowth: 24.5,
-  topSkills: [
-    { name: "JavaScript", count: 3421, percentage: 26.6 },
-    { name: "Python", count: 2987, percentage: 23.2 },
-    { name: "React", count: 2654, percentage: 20.7 },
-    { name: "Node.js", count: 2341, percentage: 18.2 },
-    { name: "SQL", count: 2156, percentage: 16.8 },
-    { name: "AWS", count: 1987, percentage: 15.5 },
-    { name: "Java", count: 1876, percentage: 14.6 },
-    { name: "TypeScript", count: 1654, percentage: 12.9 }
-  ],
-  industryBreakdown: [
-    { name: "Technology", count: 4521, percentage: 35.2 },
-    { name: "Finance", count: 2987, percentage: 23.3 },
-    { name: "Healthcare", count: 2156, percentage: 16.8 },
-    { name: "Manufacturing", count: 1654, percentage: 12.9 },
-    { name: "Education", count: 987, percentage: 7.7 },
-    { name: "Other", count: 542, percentage: 4.2 }
-  ],
-  monthlyStats: [
-    { month: "Jan", resumes: 987, companies: 12 },
-    { month: "Feb", resumes: 1234, companies: 15 },
-    { month: "Mar", resumes: 1456, companies: 18 },
-    { month: "Apr", resumes: 1678, companies: 21 },
-    { month: "May", resumes: 1987, companies: 25 },
-    { month: "Jun", resumes: 2341, companies: 28 },
-    { month: "Jul", resumes: 2654, companies: 32 }
-  ]
-};
+// Interface for company data
+interface CompanyData {
+  totalResumes: number;
+  totalCompanies: number;
+  totalUsers: number;
+  processingAccuracy: number;
+  avgProcessingTime: number;
+  monthlyGrowth: number;
+  topSkills: Array<{ name: string; count: number; percentage: number }>;
+  industryBreakdown: Array<{ name: string; count: number; percentage: number }>;
+  monthlyStats: Array<{ month: string; resumes: number; companies: number }>;
+}
 
-// Generate daily/weekly data for current company
-const generateDailyData = () => {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  return days.map(day => ({
-    day,
-    resumes: Math.floor(Math.random() * 50) + 10,
-    processed: Math.floor(Math.random() * 45) + 8,
-    failed: Math.floor(Math.random() * 3) + 1
-  }));
-};
+// Interface for daily data
+interface DailyData {
+  day: string;
+  resumes: number;
+  processed: number;
+  failed: number;
+}
 
-const generateWeeklyData = () => {
-  const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-  return weeks.map(week => ({
-    week,
-    resumes: Math.floor(Math.random() * 200) + 100,
-    processed: Math.floor(Math.random() * 190) + 95,
-    failed: Math.floor(Math.random() * 10) + 2
-  }));
-};
+// Interface for weekly data
+interface WeeklyData {
+  week: string;
+  resumes: number;
+  processed: number;
+  failed: number;
+}
 
-const generateTopSkillsDaily = () => {
-  const skills = ['React', 'Python', 'JavaScript', 'Node.js', 'SQL', 'AWS', 'Java', 'TypeScript'];
-  return skills.slice(0, 5).map(skill => ({
-    name: skill,
-    count: Math.floor(Math.random() * 20) + 5,
-    trend: Math.random() > 0.5 ? 'up' : 'down',
-    change: Math.floor(Math.random() * 15) + 1
-  }));
-};
+// Interface for top skills
+interface TopSkill {
+  name: string;
+  count: number;
+  trend: 'up' | 'down';
+  change: number;
+}
 
 export interface AnalyticsContextType {
   // Company-wide data
-  companyData: typeof mockCompanyData;
+  companyData: CompanyData | null;
   
   // Current company daily/weekly data
-  dailyData: Array<{day: string, resumes: number, processed: number, failed: number}>;
-  weeklyData: Array<{week: string, resumes: number, processed: number, failed: number}>;
-  topSkillsDaily: Array<{name: string, count: number, trend: string, change: number}>;
+  dailyData: DailyData[];
+  weeklyData: WeeklyData[];
+  topSkillsDaily: TopSkill[];
+  
+  // Loading and error states
+  loading: boolean;
+  error: string | null;
   
   // Current period selection
   currentPeriod: 'daily' | 'weekly';
@@ -96,17 +69,56 @@ export function useAnalytics() {
 }
 
 export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
-  const [companyData] = useState(mockCompanyData);
-  const [dailyData, setDailyData] = useState(generateDailyData);
-  const [weeklyData, setWeeklyData] = useState(generateWeeklyData);
-  const [topSkillsDaily, setTopSkillsDaily] = useState(generateTopSkillsDaily);
+  const [companyData, setCompanyData] = useState<CompanyData | null>(null);
+  const [dailyData, setDailyData] = useState<DailyData[]>([]);
+  const [weeklyData, setWeeklyData] = useState<WeeklyData[]>([]);
+  const [topSkillsDaily, setTopSkillsDaily] = useState<TopSkill[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPeriod, setCurrentPeriod] = useState<'daily' | 'weekly'>('daily');
 
-  const refreshData = () => {
-    setDailyData(generateDailyData());
-    setWeeklyData(generateWeeklyData());
-    setTopSkillsDaily(generateTopSkillsDaily());
+  const fetchAnalyticsData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // TODO: Replace with actual API calls
+      // const response = await fetch('/api/analytics/company');
+      // const data = await response.json();
+      // setCompanyData(data);
+      // 
+      // const dailyResponse = await fetch('/api/analytics/daily');
+      // const daily = await dailyResponse.json();
+      // setDailyData(daily);
+      // 
+      // const weeklyResponse = await fetch('/api/analytics/weekly');
+      // const weekly = await weeklyResponse.json();
+      // setWeeklyData(weekly);
+      // 
+      // const skillsResponse = await fetch('/api/analytics/skills');
+      // const skills = await skillsResponse.json();
+      // setTopSkillsDaily(skills);
+      
+      // For now, set empty data
+      setCompanyData(null);
+      setDailyData([]);
+      setWeeklyData([]);
+      setTopSkillsDaily([]);
+    } catch (err) {
+      console.error('Error fetching analytics data:', err);
+      setError('Failed to load analytics data');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const refreshData = () => {
+    fetchAnalyticsData();
+  };
+
+  useEffect(() => {
+    fetchAnalyticsData();
+  }, []);
 
   // Auto-refresh data every 30 seconds for demo
   useEffect(() => {
@@ -120,6 +132,8 @@ export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
       dailyData,
       weeklyData,
       topSkillsDaily,
+      loading,
+      error,
       currentPeriod,
       setCurrentPeriod,
       refreshData

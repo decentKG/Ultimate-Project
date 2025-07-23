@@ -128,33 +128,60 @@ export default function UploadManager() {
       ));
     }
 
-    // Simulate completion with mock results
-    const mockResult = {
-      name: uploadFile.file.name.replace(/\.[^/.]+$/, ""),
-      email: "candidate@email.com",
-      phone: "+1 (555) 123-4567",
-      position: "Software Engineer",
-      experience: "5 years",
-      skills: ["React", "Node.js", "Python", "AWS"],
-      education: "Bachelor's in Computer Science",
-      certifications: ["AWS Solutions Architect"],
-      matchScore: Math.floor(Math.random() * 20) + 80,
-      confidence: parseSettings.confidenceThreshold + Math.floor(Math.random() * 10)
-    };
-
-    setUploadFiles(prev => prev.map(f => 
-      f.id === uploadFile.id ? { 
-        ...f, 
-        status: 'completed', 
-        progress: 100,
-        result: mockResult
-      } : f
-    ));
-
-    toast({
-      title: "Resume processed successfully",
-      description: `${uploadFile.file.name} has been parsed with ${mockResult.confidence}% confidence`
-    });
+    try {
+      // TODO: Replace with actual API call
+      // const formData = new FormData();
+      // formData.append('file', uploadFile.file);
+      // formData.append('settings', JSON.stringify(parseSettings));
+      // 
+      // const response = await fetch('/api/parse/resume', {
+      //   method: 'POST',
+      //   body: formData,
+      // });
+      // 
+      // if (!response.ok) {
+      //   throw new Error('Failed to process resume');
+      // }
+      // 
+      // const result = await response.json();
+      
+      // For now, set a basic result with just the filename
+      const result = {
+        name: uploadFile.file.name.replace(/\.[^/.]+$/, ""),
+        status: 'completed',
+        confidence: parseSettings.confidenceThreshold
+      };
+      
+      setUploadFiles(prev => prev.map(f => 
+        f.id === uploadFile.id ? { 
+          ...f, 
+          status: 'completed', 
+          progress: 100,
+          result
+        } : f
+      ));
+      
+      toast({
+        title: "Resume uploaded successfully",
+        description: `Processing started for ${uploadFile.file.name}`
+      });
+    } catch (error) {
+      console.error('Error processing file:', error);
+      setUploadFiles(prev => prev.map(f => 
+        f.id === uploadFile.id ? { 
+          ...f, 
+          status: 'error', 
+          error: 'Failed to process resume',
+          progress: 0
+        } : f
+      ));
+      
+      toast({
+        title: "Error processing resume",
+        description: `Failed to process ${uploadFile.file.name}`,
+        variant: "destructive"
+      });
+    }
   };
 
   const processAllFiles = async () => {

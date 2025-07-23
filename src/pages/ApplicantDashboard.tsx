@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import ApplicantChatBot from "@/components/ApplicantChatBot";
 import { 
   FileText, 
   Upload, 
@@ -580,4 +581,12 @@ const ApplicantDashboard = () => {
   );
 };
 
-export default ApplicantDashboard;
+// Wrap the ApplicantDashboard with the ApplicantChatBot
+const ApplicantDashboardWithChat = () => (
+  <>
+    <ApplicantDashboard />
+    <ApplicantChatBot />
+  </>
+);
+
+export default ApplicantDashboardWithChat;

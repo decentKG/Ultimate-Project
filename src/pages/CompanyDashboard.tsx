@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApplicantList } from "@/components/ApplicantList";
+import ChatBot from "@/components/ChatBot";
 import { 
   FileText, 
   Upload, 
@@ -73,45 +74,14 @@ const CompanyDashboard = () => {
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [resumes, setResumes] = useState<Resume[]>([]); // Remove mock data
-
-  const [jobPostings] = useState<JobPosting[]>([
-    {
-      id: '1',
-      title: 'Senior Software Engineer',
-      department: 'Engineering',
-      location: 'Remote',
-      type: 'full-time',
-      applications: 24,
-      posted: new Date('2025-01-10'),
-      status: 'active'
-    },
-    {
-      id: '2',
-      title: 'Frontend Developer',
-      department: 'Engineering',
-      location: 'New York, NY',
-      type: 'full-time',
-      applications: 18,
-      posted: new Date('2025-01-08'),
-      status: 'active'
-    },
-    {
-      id: '3',
-      title: 'Data Scientist',
-      department: 'Analytics',
-      location: 'San Francisco, CA',
-      type: 'full-time',
-      applications: 15,
-      posted: new Date('2025-01-05'),
-      status: 'active'
-    }
-  ]);
+  const [resumes, setResumes] = useState<Resume[]>([]);
+  const [jobPostings, setJobPostings] = useState<JobPosting[]>([]);
 
   const filteredResumes = resumes.filter(resume => {
-    const matchesSearch = resume.applicantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         resume.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         resume.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()));
+    if (!resume) return false;
+    const matchesSearch = resume.applicantName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         resume.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         resume.skills?.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesFilter = filterStatus === 'all' || resume.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
@@ -690,6 +660,9 @@ const CompanyDashboard = () => {
           )}
         </DialogContent>
       </Dialog>
+      
+      {/* Chat Bot */}
+      <ChatBot />
     </div>
   );
 };

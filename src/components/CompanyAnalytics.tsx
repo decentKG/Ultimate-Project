@@ -27,11 +27,70 @@ import {
   Download
 } from "lucide-react";
 import { useAnalytics } from "./AnalyticsContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#F97316', '#84CC16'];
 
 export default function CompanyAnalytics() {
-  const { companyData, refreshData } = useAnalytics();
+  const { companyData, refreshData, loading, error } = useAnalytics();
+
+  // Early return for loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-muted/30 p-6 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardHeader className="space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/4" />
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Skeleton className="h-8 w-1/2" />
+                <Skeleton className="h-4 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Early return for error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-muted/30 p-6 space-y-6">
+        <div className="bg-destructive/10 p-4 rounded-md border border-destructive/30">
+          <p className="text-destructive">{error}</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="mt-2" 
+            onClick={refreshData}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Early return if no data
+  if (!companyData) {
+    return (
+      <div className="min-h-screen bg-muted/30 p-6 space-y-6">
+        <div className="text-center p-8">
+          <h2 className="text-xl font-semibold mb-2">No data available</h2>
+          <p className="text-muted-foreground mb-4">We couldn't load the analytics data at this time.</p>
+          <Button onClick={refreshData}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/30 p-6 space-y-6">
@@ -61,12 +120,16 @@ export default function CompanyAnalytics() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{companyData.totalResumes.toLocaleString()}</div>
-            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-              <TrendingUp className="h-3 w-3 text-green-500" />
-              <span className="text-green-500">+{companyData.monthlyGrowth}%</span>
-              <span>from last month</span>
+            <div className="text-2xl font-bold">
+              {companyData.totalResumes?.toLocaleString?.() ?? 'N/A'}
             </div>
+            {companyData.monthlyGrowth !== undefined && (
+              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                <TrendingUp className="h-3 w-3 text-green-500" />
+                <span className="text-green-500">+{companyData.monthlyGrowth}%</span>
+                <span>from last month</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -76,11 +139,12 @@ export default function CompanyAnalytics() {
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{companyData.totalCompanies}</div>
+            <div className="text-2xl font-bold">
+              {companyData.totalCompanies?.toLocaleString?.() ?? 'N/A'}
+            </div>
             <div className="flex items-center space-x-2 text-xs text-muted-foreground">
               <TrendingUp className="h-3 w-3 text-green-500" />
-              <span className="text-green-500">+12</span>
-              <span>new this month</span>
+              <span>View analytics</span>
             </div>
           </CardContent>
         </Card>
@@ -91,11 +155,12 @@ export default function CompanyAnalytics() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{companyData.totalUsers}</div>
+            <div className="text-2xl font-bold">
+              {companyData.totalUsers?.toLocaleString?.() ?? 'N/A'}
+            </div>
             <div className="flex items-center space-x-2 text-xs text-muted-foreground">
               <TrendingUp className="h-3 w-3 text-green-500" />
-              <span className="text-green-500">+8.2%</span>
-              <span>growth rate</span>
+              <span>View users</span>
             </div>
           </CardContent>
         </Card>
@@ -106,87 +171,97 @@ export default function CompanyAnalytics() {
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{companyData.processingAccuracy}%</div>
-            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              <span>Avg: {companyData.avgProcessingTime}s</span>
+            <div className="text-2xl font-bold">
+              {companyData.processingAccuracy !== undefined ? `${companyData.processingAccuracy}%` : 'N/A'}
             </div>
+            {companyData.avgProcessingTime !== undefined && (
+              <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3 text-blue-500" />
+                <span>Avg. {companyData.avgProcessingTime}s per resume</span>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
       {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Monthly Growth Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Monthly Growth Trends</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={companyData.monthlyStats}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Line 
-                  type="monotone" 
-                  dataKey="resumes" 
-                  stroke="#3B82F6" 
-                  strokeWidth={2}
-                  name="Resumes"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="companies" 
-                  stroke="#10B981" 
-                  strokeWidth={2}
-                  name="Companies"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      {companyData.monthlyStats?.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Monthly Growth Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Growth Trends</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={companyData.monthlyStats}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line 
+                      type="monotone" 
+                      dataKey="resumes" 
+                      stroke="#3B82F6" 
+                      strokeWidth={2}
+                      name="Resumes"
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="companies" 
+                      stroke="#10B981" 
+                      strokeWidth={2}
+                      name="Companies"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Industry Breakdown */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Industry Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={companyData.industryBreakdown}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percentage }) => `${name} ${percentage}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="count"
-                >
-                  {companyData.industryBreakdown.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+            {/* Industry Breakdown */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Industry Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={companyData.industryBreakdown}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percentage }) => `${name} ${percentage}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="count"
+                    >
+                      {companyData.industryBreakdown.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Top Skills and Detailed Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Top Skills Globally */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Most In-Demand Skills Globally</CardTitle>
+            <CardTitle>Most In-Demand Skills</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {companyData.topSkills.map((skill, index) => (
+              {companyData.topSkills?.map((skill, index) => (
                 <div key={skill.name} className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <Badge variant="outline" className="w-8 h-8 rounded-full flex items-center justify-center">
@@ -195,7 +270,7 @@ export default function CompanyAnalytics() {
                     <div>
                       <div className="font-medium">{skill.name}</div>
                       <div className="text-sm text-muted-foreground">
-                        {skill.count.toLocaleString()} mentions
+                        {skill.count?.toLocaleString() ?? 0} mentions
                       </div>
                     </div>
                   </div>
@@ -217,14 +292,6 @@ export default function CompanyAnalytics() {
           <CardContent className="space-y-4">
             <div>
               <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium">Processing Success Rate</span>
-                <span className="text-sm font-bold">{companyData.processingAccuracy}%</span>
-              </div>
-              <Progress value={companyData.processingAccuracy} className="h-2" />
-            </div>
-            
-            <div>
-              <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">System Uptime</span>
                 <span className="text-sm font-bold">99.9%</span>
               </div>
@@ -242,7 +309,7 @@ export default function CompanyAnalytics() {
             <div className="pt-4 border-t">
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">
-                  {companyData.avgProcessingTime}s
+                  {companyData.avgProcessingTime ?? 0}s
                 </div>
                 <div className="text-sm text-muted-foreground">
                   Average Processing Time
