@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ApplicantDashboard from "./pages/ApplicantDashboard";
 import CompanyDashboard from "./pages/CompanyDashboard";
+import ApplicantsPage from "./pages/ApplicantsPage";
 import NotFound from "./pages/NotFound";
 import Help from "./pages/Help";
 import Analytics from "./pages/Analytics";
@@ -57,6 +58,11 @@ const App = () => {
               <Route path="/company-dashboard" element={
                 <ProtectedRoute allowedRoles={['company']}>
                   <CompanyDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/applicants" element={
+                <ProtectedRoute allowedRoles={['company']}>
+                  <ApplicantsPage />
                 </ProtectedRoute>
               } />
               <Route path="/help" element={<Help />} />

@@ -99,9 +99,13 @@ const Index = () => {
         </div>
         
         {/* Content */}
-        <div className="relative z-10 max-w-6xl mx-auto px-4 text-center">
-          <Badge variant="outline" className="mb-6 border-blue-200 text-blue-200 bg-blue-900/50 backdrop-blur-sm animate-heroTitleFadeIn" style={{ animation: 'heroTitleFadeIn 1.1s cubic-bezier(.77,0,.18,1) 0.1s both' }}>
-            <Zap className="w-4 h-4 mr-2" />
+        <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <Badge 
+            variant="outline" 
+            className="mb-4 sm:mb-6 border-blue-200 text-blue-200 bg-blue-900/50 backdrop-blur-sm animate-heroTitleFadeIn text-sm sm:text-base" 
+            style={{ animation: 'heroTitleFadeIn 1.1s cubic-bezier(.77,0,.18,1) 0.1s both' }}
+          >
+            <Zap className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
             Powered by C-Tech
           </Badge>
           <style>{`
@@ -120,50 +124,59 @@ const Index = () => {
               }
             }
           `}</style>
-          <h2 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 text-white leading-tight animate-heroTitleFadeIn whitespace-nowrap" style={{ animation: 'heroTitleFadeIn 1.2s cubic-bezier(.77,0,.18,1) 0.2s both' }}>
+          <h2 
+            className="text-3xl xs:text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-4 sm:mb-6 text-white leading-tight animate-heroTitleFadeIn px-2" 
+            style={{ animation: 'heroTitleFadeIn 1.2s cubic-bezier(.77,0,.18,1) 0.2s both' }}
+          >
             Welcome to C-Resume Parser
           </h2>
-          <p className="text-xl md:text-2xl text-blue-100 mb-8 max-w-4xl mx-auto leading-relaxed animate-heroTitleFadeIn" style={{ animation: 'heroTitleFadeIn 1.2s cubic-bezier(.77,0,.18,1) 0.4s both' }}>
-            Revolutionize your hiring process with our <span className="text-300 font-semibold">AI-powered Resume Parser.</span>
-            {' '}Instantly transform unstructured resumes into actionable, categorized data,
+          <p 
+            className="text-base xs:text-lg sm:text-xl md:text-2xl text-blue-100 mb-6 sm:mb-8 max-w-4xl mx-auto leading-relaxed animate-heroTitleFadeIn px-2" 
+            style={{ animation: 'heroTitleFadeIn 1.2s cubic-bezier(.77,0,.18,1) 0.4s both' }}
+          >
+            Revolutionize your hiring process with our <span className="text-blue-200 font-semibold">AI-powered Resume Parser</span>.
+            Instantly transform unstructured resumes into actionable, categorized data,
             empowering recruiters to efficiently identify top talent.
           </p>
-          <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center items-center mb-8 sm:mb-12 px-2">
             {user ? (
-              <Link to={role === 'company' ? '/company-dashboard' : '/applicant-dashboard'}>
+              <Link to={role === 'company' ? '/company-dashboard' : '/applicant-dashboard'} className="w-full sm:w-auto">
                 <Button 
                   size="lg" 
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-10 py-4 text-lg font-semibold transform hover:scale-105 transition-all duration-200 shadow-2xl animate-heroTitleFadeIn"
+                  className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-6 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-semibold transform hover:scale-105 transition-all duration-200 shadow-2xl animate-heroTitleFadeIn"
                   style={{ animation: 'heroTitleFadeIn 1.2s cubic-bezier(.77,0,.18,1) 0.6s both' }}
                 >
                   Dashboard
-                  <ArrowRight className="w-5 h-5 ml-2" />
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" />
                 </Button>
               </Link>
             ) : (
-              <Link to="/auth">
+              <Link to="/auth" className="w-full sm:w-auto">
                 <Button 
                   size="lg" 
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-10 py-4 text-lg font-semibold transform hover:scale-105 transition-all duration-200 shadow-2xl animate-heroTitleFadeIn"
+                  className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-6 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-semibold transform hover:scale-105 transition-all duration-200 shadow-2xl animate-heroTitleFadeIn"
                   style={{ animation: 'heroTitleFadeIn 1.2s cubic-bezier(.77,0,.18,1) 0.6s both' }}
                 >
                   Get Started
-                  <ArrowRight className="w-5 h-5 ml-2" />
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" />
                 </Button>
               </Link>
             )}
-            <Link to="/auth">
+            <Link to="/auth" className="w-full sm:w-auto">
               <Button 
                 size="lg" 
                 variant="outline" 
-                className="border-2 border-white text-blue-600 hover:bg-white hover:text-blue-900 px-10 py-4 text-lg font-semibold transform hover:scale-105 transition-all duration-200 backdrop-blur-sm animate-heroTitleFadeIn"
+                className="w-full sm:w-auto border-2 border-white text-white hover:bg-white/10 hover:text-white px-6 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-semibold transform hover:scale-105 transition-all duration-200 backdrop-blur-sm animate-heroTitleFadeIn"
                 style={{ animation: 'heroTitleFadeIn 1.2s cubic-bezier(.77,0,.18,1) 0.8s both' }}
               >
                 Learn More
               </Button>
             </Link>
           </div>
-          <div className="text-blue-200 text-lg font-medium animate-heroTitleFadeIn" style={{ animation: 'heroTitleFadeIn 1.2s cubic-bezier(.77,0,.18,1) 1s both' }}>
+          <div 
+            className="text-blue-200 text-sm sm:text-base md:text-lg font-medium animate-heroTitleFadeIn px-2" 
+            style={{ animation: 'heroTitleFadeIn 1.2s cubic-bezier(.77,0,.18,1) 1s both' }}
+          >
             Trusted by 500+ companies worldwide
           </div>
         </div>

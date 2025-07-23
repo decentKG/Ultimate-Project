@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ApplicantList } from "@/components/ApplicantList";
 import { 
   FileText, 
   Upload, 
@@ -33,7 +34,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/AuthContext";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 interface Resume {
   id: string;
@@ -65,9 +66,10 @@ interface JobPosting {
 const CompanyDashboard = () => {
   const { user, logout } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  const [activeSection, setActiveSection] = useState<'overview' | 'resumes' | 'jobs' | 'analytics'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'resumes' | 'jobs' | 'analytics' | 'applicants'>('overview');
   const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -212,6 +214,14 @@ const CompanyDashboard = () => {
             >
               <BarChart3 className="w-4 h-4 mr-3" />
               Analytics
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-start text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground"
+              onClick={() => navigate('/applicants')}
+            >
+              <Users className="w-4 h-4 mr-3" />
+              View All Applicants
             </Button>
           </div>
         </nav>
