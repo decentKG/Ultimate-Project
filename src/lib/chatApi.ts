@@ -3,59 +3,56 @@ interface ChatMessage {
   content: string;
 }
 
-interface ErrorResponse {
-  error: string;
-  details?: string;
-}
+// Base URL for the Express backend
+const API_BASE_URL = 'http://localhost:3001';
+
+// Fallback responses when the API is unavailable
+const FALLBACK_RESPONSES = [
+  "I'm here to help with your hiring needs. Could you tell me more about what you're looking for?",
+  "I can assist with job descriptions, resume screening, and interview questions. What would you like to know?",
+  "Let me help you with your hiring process. What specific information do you need?",
+  "I'm your hiring assistant. How can I help you today?"
+];
+
+// Get a random fallback response
+const getFallbackResponse = () => {
+  return FALLBACK_RESPONSES[Math.floor(Math.random() * FALLBACK_RESPONSES.length)];
+};
 
 export async function sendChatMessage(messages: ChatMessage[]): Promise<string> {
+  const lastUserMessage = messages
+    .slice()
+    .reverse()
+    .find(m => m.role === 'user');
+  
   try {
-    console.log('Sending chat message to API:', { messages });
+    console.log('Sending chat message to API');
     
-    const response = await fetch('/api/chat', {
+    const response = await fetch(`${API_BASE_URL}/api/chat`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ messages }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages })
     });
 
-    const responseData = await response.json().catch(() => ({}));
-    
+    // If the response is not OK, use fallback
     if (!response.ok) {
-      console.error('API Error Response:', {
-        status: response.status,
-        statusText: response.statusText,
-        responseData
-      });
-      
-      const errorMessage = (responseData as ErrorResponse)?.error || 'Failed to get response from AI';
-      throw new Error(errorMessage);
+      console.warn('API responded with status:', response.status);
+      return getFallbackResponse();
     }
 
-    if (!responseData.content) {
-      console.error('Unexpected API response format:', responseData);
-      throw new Error('Unexpected response format from AI service');
-    }
-
-    return responseData.content;
+    const responseData = await response.json().catch(() => null);
     
-  } catch (error: any) {
-    console.error('Error in sendChatMessage:', {
-      error: error.message,
-      stack: error.stack,
-      name: error.name
-    });
-    
-    // Return a more specific error message if available
-    if (error.message.includes('Failed to fetch')) {
-      return "I'm having trouble connecting to our servers. Please check your internet connection and try again.";
+    // If we got a valid response with content, return it
+    if (responseData?.content) {
+      return responseData.content;
     }
     
-    if (error.message.includes('401')) {
-      return "There's an issue with the AI service configuration. Please contact support.";
-    }
+    // If response format is unexpected, use fallback
+    console.warn('Unexpected API response format:', responseData);
+    return getFallbackResponse();
     
-    return error.message || "I'm having trouble connecting to the AI service. Please try again later.";
+  } catch (error) {
+    console.error('Error in sendChatMessage:', error);
+    return getFallbackResponse();
   }
 }

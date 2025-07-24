@@ -165,8 +165,8 @@ const Index = () => {
             <Link to="/auth" className="w-full sm:w-auto">
               <Button 
                 size="lg" 
-                variant="outline" 
-                className="w-full sm:w-auto border-2 border-white text-white hover:bg-white/10 hover:text-white px-6 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-semibold transform hover:scale-105 transition-all duration-200 backdrop-blur-sm animate-heroTitleFadeIn"
+                variant="default" 
+                className="w-full sm:w-auto bg-cyan-500 hover:bg-cyan-600 text-white border-2 border-transparent hover:border-white px-6 sm:px-10 py-3 sm:py-4 text-base sm:text-lg font-semibold transform hover:scale-105 transition-all duration-200 animate-heroTitleFadeIn"
                 style={{ animation: 'heroTitleFadeIn 1.2s cubic-bezier(.77,0,.18,1) 0.8s both' }}
               >
                 Learn More
