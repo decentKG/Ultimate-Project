@@ -9,13 +9,32 @@ const logger = require('./utils/logger');
 const apiRoutes = require('./routes');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Middleware
 app.use(helmet());
+// Configure CORS to allow requests from the frontend
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:8083',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -27,6 +46,15 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Routes
 app.use('/api', apiRoutes);
+
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    message: 'Backend is working!',
+    timestamp: new Date().toISOString() 
+  });
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {

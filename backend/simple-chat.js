@@ -1,55 +1,108 @@
-require('dotenv').config();
+// Load environment variables from root .env file
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
 const express = require('express');
 const cors = require('cors');
+const axios = require('axios');
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:8083'
+}));
 app.use(express.json());
 
-// Predefined responses
-const RESPONSES = {
-  'hello': 'Hello! How can I assist you with your hiring needs today?',
-  'hi': 'Hi there! I\'m here to help with your recruitment questions.',
-  'help': 'I can help with job descriptions, resume screening, and interview questions. What do you need?',
-  'job': 'I can help you create job descriptions or review existing ones. What position are you hiring for?',
-  'resume': 'I can help analyze resumes and provide insights. You can share the key details.',
-  'interview': 'I can suggest interview questions and evaluation criteria. What role are you interviewing for?',
-  'default': 'I\'m your hiring assistant. I can help with job descriptions, resume screening, and interview preparation. What would you like to know?'
-};
-
-// Simple chat endpoint that always responds
-app.post('/api/chat', (req, res) => {
+// Unrestricted Chat Endpoint
+app.post('/api/chat', async (req, res) => {
   try {
-    const messages = req.body.messages || [];
-    const lastUserMessage = messages
-      .slice()
-      .reverse()
-      .find(m => m.role === 'user');
+    const { messages } = req.body;
     
-    const userInput = (lastUserMessage?.content || '').toLowerCase();
-    
-    // Find a matching response or use default
-    let response = RESPONSES.default;
-    for (const [key, value] of Object.entries(RESPONSES)) {
-      if (userInput.includes(key)) {
-        response = value;
-        break;
-      }
+    if (!messages || !Array.isArray(messages)) {
+      return res.status(400).json({ error: 'Messages array is required' });
     }
 
-    res.json({
-      role: 'assistant',
-      content: response
-    });
+    console.log('Processing chat request...');
+    
+    // Get the last user message
+    const lastUserMessage = messages[messages.length - 1]?.content || '';
+    
+    // System message that mimics ChatGPT's behavior
+    const systemMessage = {
+      role: 'system',
+      content: `You are ChatGPT, a helpful AI assistant created by OpenAI. You are designed to be helpful, harmless, and honest. 
+      - You can discuss various topics including programming, science, history, and more
+      - You can write and debug code in multiple programming languages
+      - You can analyze and explain complex concepts
+      - You can help with creative writing, brainstorming, and problem-solving
+      - You should be concise when possible, but provide detailed explanations when needed
+      - You can admit when you don't know something or if you're unsure`
+    };
+
+    // Prepare messages for the model
+    const modelMessages = [systemMessage, ...messages];
+    
+    try {
+      // Try Ollama first
+      console.log('Sending to Ollama...');
+      const response = await axios.post('http://localhost:11434/api/chat', {
+        model: 'llama3',
+        messages: modelMessages,
+        stream: false,
+        options: {
+          temperature: 0.9,
+          num_predict: 4000,
+          top_p: 0.95,
+          repeat_penalty: 1.1,
+          top_k: 40,
+          tfs_z: 1.0,
+          typical_p: 1.0,
+          stop: [],
+          numa: false,
+          num_ctx: 4096,
+          num_batch: 8,
+          num_gqa: 1,
+          num_gpu: 1,
+          main_gpu: 0,
+          low_vram: false,
+          f16_kv: true,
+          vocab_only: false,
+          use_mmap: true,
+          use_mlock: false,
+          embedding_only: false,
+          rope_frequency_base: 10000.0,
+          rope_frequency_scale: 1.0,
+          num_thread: 8
+        }
+      }, {
+        timeout: 300000 // 5 minute timeout
+      });
+
+      console.log('Received response from Ollama');
+      return res.json({
+        role: 'assistant',
+        content: response.data.message?.content.trim() || "I didn't get a response from the model."
+      });
+      
+    } catch (ollamaError) {
+      console.error('Ollama error:', ollamaError.message);
+      
+      // Fallback response if Ollama fails
+      return res.json({
+        role: 'assistant',
+        content: `I understand you want information about "${lastUserMessage}". ` +
+                 `However, I'm currently experiencing technical difficulties with my primary response system. ` +
+                 `Please try again in a few moments.`
+      });
+    }
     
   } catch (error) {
-    console.error('Chat error:', error);
-    res.status(200).json({
-      role: 'assistant',
-      content: 'I encountered an error. Please try asking me something else about hiring or recruitment.'
+    console.error('Unexpected error in chat endpoint:', error);
+    res.status(500).json({
+      error: 'An error occurred while processing your request',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

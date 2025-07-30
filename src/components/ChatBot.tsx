@@ -1,178 +1,257 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, X, User, Sparkles, BrainCircuit } from 'lucide-react';
+import { Send, X, MessageCircle, HelpCircle, AlertCircle } from 'lucide-react';
 import { cn } from "@/lib/utils";
-import { sendChatMessage } from "@/lib/chatApi";
-import type { ChatMessage } from "@/types/chat";
+import { toast } from "sonner";
 
-interface UIMessage {
+interface Message {
   id: string;
-  text: string;
-  sender: 'user' | 'bot';
+  content: string;
+  role: 'user' | 'assistant' | 'error';
   timestamp: Date;
 }
 
+// Mock responses for when API is unavailable
+const MOCK_RESPONSES = [
+  "I'm here to help! How can I assist you today?",
+  "That's a great question! Let me think about that...",
+  "I can help with job search tips, resume advice, and interview preparation.",
+  "I'm currently in demo mode. In a production environment, I could help more effectively!",
+  "Thanks for your message! I'm a demo AI assistant for this hiring platform."
+];
+
+const getMockResponse = () => {
+  return MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)];
+};
+
 const ChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<UIMessage[]>([
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: 'Hello! I\'m your AI hiring assistant. How can I help you today?',
-      sender: 'bot',
+      content: 'Hello! I\'m your AI assistant. How can I help you today?',
+      role: 'assistant',
       timestamp: new Date()
     }
   ]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [isLoading, setIsLoading] = useState(false);
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-  const handleSendMessage = useCallback(async () => {
-    if (message.trim() === '' || isLoading) return;
-    
-    // Add user message
-    const userMessage: UIMessage = {
+  const callOpenRouterAPI = async (userInput: string): Promise<string> => {
+    try {
+      const requestBody = {
+        model: 'mistralai/mistral-7b-instruct',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a helpful AI assistant for a hiring platform. Help users with job applications, resume tips, and interview preparation.'
+          },
+          ...messages.filter(m => m.role !== 'error').map(msg => ({
+            role: msg.role,
+            content: msg.content
+          })),
+          {
+            role: 'user',
+            content: userInput
+          }
+        ]
+      };
+
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
+          'HTTP-Referer': window.location.origin,
+          'X-Title': import.meta.env.VITE_OPENROUTER_APP_NAME || 'Hiring Platform'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || 'Failed to get response from AI service');
+      }
+
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || 'I\'m not sure how to respond to that.';
+      
+    } catch (error) {
+      console.error('API call failed, using mock response', error);
+      throw error;
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!input.trim() || isLoading) return;
+
+    const userMessage: Message = {
       id: Date.now().toString(),
-      text: message,
-      sender: 'user',
+      content: input.trim(),
+      role: 'user',
       timestamp: new Date()
     };
-    
+
     setMessages(prev => [...prev, userMessage]);
-    setMessage('');
+    setInput('');
     setIsLoading(true);
-    
+
     try {
-      // Prepare messages for the API
-      const apiMessages: ChatMessage[] = [
-        {
-          role: 'system',
-          content: 'You are a helpful hiring assistant. Provide concise, professional responses.'
-        },
-        ...messages.map(msg => ({
-          role: msg.sender === 'user' ? 'user' as const : 'assistant' as const,
-          content: msg.text
-        })),
-        { role: 'user', content: message }
-      ];
+      // Try to call the actual API first
+      const response = await callOpenRouterAPI(input);
       
-      // Get response from the API
-      const response = await sendChatMessage(apiMessages);
-      
-      // Add bot response
-      const botResponse: UIMessage = {
-        id: (Date.now() + 1).toString(),
-        text: response,
-        sender: 'bot',
+      const botMessage: Message = {
+        id: Date.now().toString(),
+        content: response,
+        role: 'assistant',
         timestamp: new Date()
       };
       
-      setMessages(prev => [...prev, botResponse]);
+      setMessages(prev => [...prev, botMessage]);
+      
     } catch (error) {
-      console.error('Error getting AI response:', error);
-      const errorResponse: UIMessage = {
-        id: (Date.now() + 1).toString(),
-        text: "I'm having trouble connecting to the AI service. Please try again later.",
-        sender: 'bot',
+      console.error('API Error:', error);
+      
+      // Fallback to mock response if API fails
+      const botMessage: Message = {
+        id: Date.now().toString(),
+        content: getMockResponse(),
+        role: 'assistant',
         timestamp: new Date()
       };
-      setMessages(prev => [...prev, errorResponse]);
+      
+      setMessages(prev => [...prev, botMessage]);
+      
+      // Show error toast for actual API errors
+      if (error instanceof Error) {
+        toast.error('Using demo mode: ' + error.message);
+      }
+      
     } finally {
       setIsLoading(false);
     }
-  }, [message, messages, isLoading]);
+  };
 
-  // Handle keyboard events
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && !isLoading) {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
-  }, [handleSendMessage, isLoading]);
-
-  // Auto-scroll to bottom of messages
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  };
 
   return (
-    <div className="fixed bottom-8 right-8 z-50">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end space-y-4">
       {isOpen ? (
-        <div className="w-80 h-[500px] bg-white rounded-lg shadow-xl flex flex-col border border-gray-200 overflow-hidden">
+        <div className="w-96 bg-white rounded-lg shadow-xl border border-gray-200 flex flex-col h-[600px] overflow-hidden">
           {/* Header */}
-          <div className="bg-primary text-primary-foreground p-4 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <BrainCircuit className="w-5 h-5" />
-              <h3 className="font-medium">Hiring Assistant</h3>
+          <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 flex justify-between items-center">
+            <div className="flex items-center space-x-3">
+              <MessageCircle className="h-5 w-5 text-white" />
+              <div>
+                <h2 className="font-semibold text-lg">Recruitment Assistant</h2>
+                <p className="text-xs opacity-80">How can I help you today?</p>
+              </div>
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-primary-foreground hover:bg-primary/80"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-white hover:bg-primary/90"
               onClick={() => setIsOpen(false)}
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
-          
+
           {/* Messages */}
-          <div className="flex-1 p-4 overflow-y-auto space-y-4">
-            {messages.map((msg) => (
-              <div 
-                key={msg.id} 
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+            {messages.map((message) => (
+              <div
+                key={message.id}
                 className={cn(
-                  "flex",
-                  msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                  'flex',
+                  message.role === 'user' ? 'justify-end' : 'justify-start',
+                  'transition-all duration-200'
                 )}
               >
-                <div 
+                <div
                   className={cn(
-                    "max-w-[80%] rounded-lg p-3 text-sm",
-                    msg.sender === 'user' 
-                      ? 'bg-primary text-primary-foreground rounded-tr-none' 
-                      : 'bg-muted text-foreground rounded-tl-none'
+                    'max-w-[85%] rounded-lg p-3 shadow-sm',
+                    message.role === 'user'
+                      ? 'bg-blue-600 text-white rounded-br-none'
+                      : message.role === 'error'
+                      ? 'bg-red-50 text-red-700 border border-red-100 rounded-bl-none'
+                      : 'bg-white border border-gray-200 text-gray-800 rounded-bl-none',
+                    'hover:shadow-md transition-shadow duration-200'
                   )}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    {msg.sender === 'bot' ? (
-                      <BrainCircuit className="w-3 h-3" />
-                    ) : (
-                      <User className="w-3 h-3" />
+                  <div className="flex items-start space-x-2">
+                    {message.role === 'assistant' && (
+                      <MessageCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-blue-500" />
                     )}
-                    <span className="text-xs opacity-70">
-                      {msg.sender === 'bot' ? 'Assistant' : 'You'}
-                    </span>
+                    {message.role === 'error' && (
+                      <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-red-500" />
+                    )}
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
                   </div>
-                  <p>{msg.text}</p>
-                  <div className="text-xs opacity-50 text-right mt-1">
-                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
+                  <p className="text-xs mt-2 text-right opacity-70">
+                    {new Date(message.timestamp).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
                 </div>
               </div>
             ))}
+            
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="bg-gray-100 rounded-lg p-3 rounded-tl-none max-w-[80%]">
+                  <div className="flex space-x-1">
+                    <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="h-2 w-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div ref={messagesEndRef} />
           </div>
-          
+
           {/* Input */}
-          <div className="border-t p-3 bg-gray-50">
-            <div className="flex items-center gap-2">
-              <Input
-                placeholder="Type your message..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="flex-1"
-              />
+          <div className="p-4 border-t border-gray-200 bg-white">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage();
+              }}
+              className="flex items-center space-x-2"
+            >
+              <div className="relative flex-1">
+                <Input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type your message..."
+                  className="pr-10 border-gray-300 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                  disabled={isLoading}
+                />
+                {!input && (
+                  <HelpCircle className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                )}
+              </div>
               <Button 
+                type="submit" 
                 size="icon" 
-                onClick={handleSendMessage}
-                disabled={message.trim() === '' || isLoading}
-                className={isLoading ? 'opacity-50' : ''}
+                disabled={isLoading || !input.trim()}
+                className="shrink-0 bg-blue-600 hover:bg-blue-700 transition-colors duration-200"
               >
                 {isLoading ? (
                   <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -180,25 +259,27 @@ const ChatBot = () => {
                   <Send className="h-4 w-4" />
                 )}
               </Button>
-            </div>
+            </form>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              Ask me about candidates, job postings, or hiring tips
+            </p>
           </div>
         </div>
       ) : (
-        <div className="relative">
-          <Button 
-            onClick={() => setIsOpen(true)}
-            className="rounded-full h-14 w-14 shadow-lg bg-gradient-to-br from-primary to-blue-700 hover:from-blue-700 hover:to-blue-900"
-            size="icon"
-          >
-            <BrainCircuit className="h-7 w-7" />
-            <span className="absolute -top-1 -right-1 flex h-5 w-5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-5 w-5 bg-blue-500 items-center justify-center">
-                <Sparkles className="h-3 w-3 text-white" />
-              </span>
+        <Button
+          onClick={() => setIsOpen(true)}
+          className="rounded-full h-14 w-14 shadow-lg bg-gradient-to-br from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 transition-all duration-300 hover:shadow-xl hover:scale-105"
+          size="icon"
+          aria-label="Open chat with Recruitment Assistant"
+        >
+          <MessageCircle className="h-6 w-6 text-white" />
+          <span className="absolute -top-1 -right-1 flex h-5 w-5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-5 w-5 bg-blue-500 items-center justify-center">
+              <span className="h-2 w-2 bg-white rounded-full"></span>
             </span>
-          </Button>
-        </div>
+          </span>
+        </Button>
       )}
     </div>
   );

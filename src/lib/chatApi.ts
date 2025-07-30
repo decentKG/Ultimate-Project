@@ -4,7 +4,7 @@ interface ChatMessage {
 }
 
 // Base URL for the Express backend
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
 // Fallback responses when the API is unavailable
 const FALLBACK_RESPONSES = [

@@ -1,0 +1,17 @@
+John Doe
+Senior Software Engineer
+
+Summary:
+Experienced software engineer with 5+ years of experience in full-stack development. Proficient in JavaScript, React, Node.js, and cloud technologies.
+
+Experience:
+- Senior Software Engineer at Tech Corp (2020-Present)
+- Software Engineer at Web Solutions (2018-2020)
+
+Education:
+- B.S. in Computer Science, University of Technology (2018)
+
+Skills:
+- JavaScript, TypeScript, React, Node.js
+- AWS, Docker, Kubernetes
+- CI/CD, Agile Methodologies

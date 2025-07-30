@@ -10,8 +10,13 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
-*.local
-!.env.local  # Allow .env.local file
+
+# Environment files
+.env.local
+.env.development
+.env.production
+!.env  # Allow root .env file
+!.env.example  # Allow example env file
 
 # Editor directories and files
 .vscode/*
@@ -23,5 +28,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.env
-!.env.example  # Allow example env file

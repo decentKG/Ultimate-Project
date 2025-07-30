@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import ApplicantChatBot from "@/components/ApplicantChatBot";
+import jobService from "@/services/jobService";
+import api from "@/services/api";
 import { 
   FileText, 
   Upload, 
@@ -22,11 +23,14 @@ import {
   Settings,
   Bell,
   Search,
-  Menu // Added Menu icon
+  Menu,
+  Pencil 
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/AuthContext";
 import { Link } from "react-router-dom";
+import ChatBot from "@/components/ChatBot";
+
 
 interface Application {
   id: string;
@@ -48,6 +52,7 @@ interface Profile {
   education: string;
   skills: string[];
   certifications: string[];
+  bio: string;
 }
 
 const SidebarNav = ({ activeSection, setActiveSection, logout }) => (
@@ -138,10 +143,16 @@ const ApplicantDashboard = () => {
     experience: '',
     education: '',
     skills: [],
-    certifications: []
+    certifications: [],
+    bio: ''
   });
+  
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   const [applications, setApplications] = useState<Application[]>([]);
+  const [isLoadingApplications, setIsLoadingApplications] = useState(true);
   const [availableJobs] = useState([
     {
       id: '1',
@@ -227,7 +238,137 @@ const ApplicantDashboard = () => {
     }
   };
 
-  const applyToJob = (jobId: string) => {
+  // Load profile data on component mount
+  useEffect(() => {
+    const loadProfile = () => {
+      if (!user?.id) return;
+      
+      try {
+        setIsProfileLoading(true);
+        const savedProfile = localStorage.getItem(`applicant_profile_${user.id}`);
+        if (savedProfile) {
+          const parsedProfile = JSON.parse(savedProfile);
+          setProfile(prev => ({
+            ...prev,
+            ...parsedProfile,
+            firstName: parsedProfile.firstName || prev.firstName,
+            lastName: parsedProfile.lastName || prev.lastName,
+            email: parsedProfile.email || user.email || ''
+          }));
+        } else {
+          // Initialize with default values if no saved profile
+          setProfile(prev => ({
+            ...prev,
+            firstName: user.name?.split(' ')[0] || '',
+            lastName: user.name?.split(' ')[1] || '',
+            email: user.email || ''
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading profile from local storage:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load profile data",
+          variant: "destructive"
+        });
+      } finally {
+        setIsProfileLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [user]);
+
+  // Load applications on component mount or when activeSection changes to 'applications'
+  useEffect(() => {
+    if (activeSection === 'applications' && user?.id) {
+      fetchApplications();
+    }
+  }, [activeSection, user?.id]);
+
+  const fetchApplications = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setIsLoadingApplications(true);
+      // Try to load from localStorage first
+      const savedApplications = localStorage.getItem(`applicant_applications_${user.id}`);
+      
+      if (savedApplications) {
+        const parsedApplications = JSON.parse(savedApplications);
+        // Ensure we have an array and format the data correctly
+        const formattedApplications = Array.isArray(parsedApplications) 
+          ? parsedApplications.map((app: any) => ({
+              ...app,
+              appliedDate: app.appliedDate ? new Date(app.appliedDate) : new Date(),
+              status: app.status || 'pending',
+              id: app.id || `app-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+            }))
+          : [];
+          
+        setApplications(formattedApplications);
+      } else {
+        // Initialize with empty array if no saved applications
+        setApplications([]);
+      }
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+      // Fallback to empty array on error
+      setApplications([]);
+      toast({
+        title: "Error",
+        description: "Failed to load your applications",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingApplications(false);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setIsSavingProfile(true);
+      // Save to local storage as a temporary solution
+      localStorage.setItem(`applicant_profile_${user.id}`, JSON.stringify(profile));
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully.",
+        variant: "default"
+      });
+      setIsEditingProfile(false);
+      
+      // In a real app, you would also save to the backend here
+      // await api.put(`/api/users/${user.id}/profile`, profile);
+      
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save profile",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+  
+  const startEditing = () => {
+    setIsEditingProfile(true);
+  };
+
+  const applyToJob = async (jobId: string) => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to apply for jobs",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!resumeFile) {
       toast({
         title: "Resume required",
@@ -237,10 +378,47 @@ const ApplicantDashboard = () => {
       return;
     }
 
-    toast({
-      title: "Application submitted!",
-      description: "Your application has been sent to the company for review."
-    });
+    try {
+      const job = availableJobs.find(j => j.id === jobId);
+      if (!job) {
+        throw new Error('Job not found');
+      }
+
+      const newApplication: Application = {
+        id: `app-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        companyName: job.company,
+        position: job.position,
+        appliedDate: new Date(),
+        status: 'pending',
+        matchScore: Math.floor(Math.random() * 30) + 70 // Random score 70-100
+      };
+      
+      // Save to local storage
+      const savedApplications = localStorage.getItem(`applicant_applications_${user.id}`);
+      const applications = savedApplications ? JSON.parse(savedApplications) : [];
+      applications.unshift(newApplication);
+      localStorage.setItem(
+        `applicant_applications_${user.id}`, 
+        JSON.stringify(applications)
+      );
+      
+      // Update state
+      setApplications(prev => [newApplication, ...prev]);
+      
+      toast({
+        title: "Application submitted!",
+        description: `You've applied for ${job.position} at ${job.company}`,
+        variant: "default"
+      });
+      
+    } catch (error: any) {
+      console.error('Error submitting application:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit application",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -276,13 +454,10 @@ const ApplicantDashboard = () => {
             </div>
           </div>
           <div className="flex items-center space-x-2 md:space-x-4">
-            <div className="relative hidden sm:block">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Search jobs..." className="pl-10 w-40 md:w-64" />
             </div>
-            <Button variant="ghost" size="icon">
-              <Bell className="w-5 h-5" />
-            </Button>
           </div>
         </header>
 
@@ -423,64 +598,109 @@ const ApplicantDashboard = () => {
                   <CardDescription>Update your profile information</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        id="firstName"
-                        value={profile.firstName}
-                        onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        value={profile.lastName}
-                        onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
-                      />
-                    </div>
+                  <div className="flex flex-col space-y-4">
+                    {isEditingProfile ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="firstName">First Name</Label>
+                            <Input
+                              id="firstName"
+                              value={profile.firstName}
+                              onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
+                              placeholder="John"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="lastName">Last Name</Label>
+                            <Input
+                              id="lastName"
+                              value={profile.lastName}
+                              onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
+                              placeholder="Doe"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="email">Email</Label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={profile.email}
+                            onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                            placeholder="john@example.com"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="phone">Phone</Label>
+                          <Input
+                            id="phone"
+                            value={profile.phone || ''}
+                            onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+                            placeholder="+1 (555) 000-0000"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="bio">Bio</Label>
+                          <Textarea
+                            id="bio"
+                            value={profile.bio || ''}
+                            onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                            placeholder="Tell us about yourself..."
+                            rows={4}
+                          />
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                          <Button 
+                            variant="outline"
+                            onClick={() => setIsEditingProfile(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            onClick={saveProfile} 
+                            disabled={isSavingProfile}
+                          >
+                            {isSavingProfile ? 'Saving...' : 'Save Changes'}
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground">First Name</p>
+                            <p className="text-sm">{profile.firstName || 'Not provided'}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground">Last Name</p>
+                            <p className="text-sm">{profile.lastName || 'Not provided'}</p>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Email</p>
+                          <p className="text-sm">{profile.email || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Phone</p>
+                          <p className="text-sm">{profile.phone || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Bio</p>
+                          <p className="text-sm whitespace-pre-line">{profile.bio || 'No bio provided'}</p>
+                        </div>
+                        <div className="flex justify-end">
+                          <Button 
+                            variant="outline"
+                            onClick={startEditing}
+                          >
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Edit Profile
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={profile.email}
-                      onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={profile.phone}
-                      onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="location">Location</Label>
-                    <Input
-                      id="location"
-                      value={profile.location}
-                      onChange={(e) => setProfile({ ...profile, location: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="summary">Professional Summary</Label>
-                    <Textarea
-                      id="summary"
-                      placeholder="Brief description of your professional background..."
-                      value={profile.summary}
-                      onChange={(e) => setProfile({ ...profile, summary: e.target.value })}
-                    />
-                  </div>
-
-                  <Button className="w-full">Save Profile</Button>
                 </CardContent>
               </Card>
             </div>
@@ -550,9 +770,14 @@ const ApplicantDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {applications.length > 0 ? (
-                    applications.map((app, index) => (
-                      <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                  {isLoadingApplications ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                      <p className="mt-2 text-muted-foreground">Loading applications...</p>
+                    </div>
+                  ) : applications.length > 0 ? (
+                    applications.map((app) => (
+                      <div key={app.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div>
                           <p className="font-semibold">{app.position}</p>
                           <p className="text-sm text-muted-foreground">{app.companyName}</p>
@@ -577,16 +802,9 @@ const ApplicantDashboard = () => {
           )}
         </div>
       </div>
+      <ChatBot />
     </div>
   );
 };
 
-// Wrap the ApplicantDashboard with the ApplicantChatBot
-const ApplicantDashboardWithChat = () => (
-  <>
-    <ApplicantDashboard />
-    <ApplicantChatBot />
-  </>
-);
-
-export default ApplicantDashboardWithChat;
+export default ApplicantDashboard;

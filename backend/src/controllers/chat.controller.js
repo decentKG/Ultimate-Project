@@ -1,38 +1,108 @@
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
 
 // In-memory storage for demo purposes (replace with a database in production)
 const conversations = new Map();
 
+// Initialize DeepSeek API client
+const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+
 const chatController = {
-  // Send a message in a conversation
+  // Send a message in a conversation and get AI response
+  // Get AI response from DeepSeek API
+  async getAIResponse(messages) {
+    try {
+      if (!DEEPSEEK_API_KEY) {
+        logger.error('DeepSeek API key is not configured');
+        return 'I apologize, but the AI service is currently unavailable.';
+      }
+
+      const response = await axios.post(
+        DEEPSEEK_API_URL,
+        {
+          model: 'deepseek-chat',
+          messages: messages,
+          temperature: 0.7,
+          max_tokens: 1000,
+          top_p: 1.0,
+          frequency_penalty: 0.0,
+          presence_penalty: 0.0,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+          },
+        }
+      );
+
+      return response.data.choices[0]?.message?.content || 'I apologize, but I could not generate a response at this time.';
+    } catch (error) {
+      logger.error('Error getting AI response:', error.response?.data || error.message);
+      return 'I apologize, but I encountered an error processing your request.';
+    }
+  },
+
+  // Send a message in a conversation and get AI response
   async sendMessage(req, res) {
     try {
       const { conversationId, content } = req.body;
-      const senderId = req.user.id;
+      const senderId = req.user?.id || 'anonymous';
 
       if (!conversationId || !content) {
         return res.status(400).json({ error: 'Conversation ID and content are required' });
       }
 
-      // In a real app, you would save this to a database
-      const message = {
+      // Initialize conversation if it doesn't exist
+      if (!conversations.has(conversationId)) {
+        conversations.set(conversationId, []);
+      }
+
+      // Create user message
+      const userMessage = {
         id: uuidv4(),
         conversationId,
         senderId,
         content,
+        role: 'user',
         timestamp: new Date().toISOString()
       };
 
-      // Add message to conversation
-      if (!conversations.has(conversationId)) {
-        conversations.set(conversationId, []);
-      }
-      conversations.get(conversationId).push(message);
+      // Add user message to conversation
+      const conversation = conversations.get(conversationId);
+      conversation.push(userMessage);
 
-      logger.info(`Message sent in conversation ${conversationId} by user ${senderId}`);
-      
-      res.status(201).json(message);
+      logger.info(`Message received in conversation ${conversationId} from user ${senderId}`);
+
+      // Prepare conversation history for AI context
+      const messages = conversation.map(msg => ({
+        role: msg.role || 'user',
+        content: msg.content
+      }));
+
+      // Get AI response from DeepSeek API
+      const aiResponse = await this.getAIResponse(messages);
+
+      // Create AI message
+      const aiMessage = {
+        id: uuidv4(),
+        conversationId,
+        senderId: 'assistant',
+        content: aiResponse,
+        role: 'assistant',
+        timestamp: new Date().toISOString()
+      };
+
+      // Add AI response to conversation
+      conversation.push(aiMessage);
+
+      // Return both messages
+      res.status(201).json({
+        userMessage,
+        aiMessage
+      });
     } catch (error) {
       logger.error('Error sending message:', error);
       res.status(500).json({ error: 'Failed to send message' });
