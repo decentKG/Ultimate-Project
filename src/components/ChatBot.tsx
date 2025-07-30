@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Send, X, MessageCircle, HelpCircle, AlertCircle } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import OpenAI from 'openai';
 
 interface Message {
   id: string;
@@ -45,56 +46,62 @@ const ChatBot = () => {
   }, [messages]);
 
   const callOpenRouterAPI = async (userInput: string): Promise<string> => {
+    const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+    const appName = import.meta.env.VITE_OPENROUTER_APP_NAME || 'Hiring Platform';
+    
+    if (!apiKey) {
+      console.error('OpenRouter API key is not configured');
+      throw new Error('AI service is not properly configured');
+    }
+
     try {
-      const requestBody = {
-        model: 'mistralai/mistral-7b-instruct',
+      const openai = new OpenAI({
+        baseURL: 'https://openrouter.ai/api/v1',
+        apiKey: apiKey,
+        defaultHeaders: {
+          "HTTP-Referer": window.location.origin,
+          "X-Title": appName,
+        },
+        dangerouslyAllowBrowser: true,
+      });
+
+      const completion = await openai.chat.completions.create({
+        model: 'mistralai/mistral-nemo:free',
         messages: [
           {
             role: 'system',
             content: 'You are a helpful AI assistant for a hiring platform. Help users with job applications, resume tips, and interview preparation.'
           },
-          ...messages.filter(m => m.role !== 'error').map(msg => ({
-            role: msg.role,
-            content: msg.content
-          })),
+          ...messages
+            .filter(m => m.role !== 'error')
+            .map(({ role, content }) => ({
+              role: role === 'assistant' ? 'assistant' : 'user',
+              content
+            })),
           {
             role: 'user',
             content: userInput
           }
-        ]
-      };
-
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_API_KEY}`,
-          'HTTP-Referer': window.location.origin,
-          'X-Title': import.meta.env.VITE_OPENROUTER_APP_NAME || 'Hiring Platform'
-        },
-        body: JSON.stringify(requestBody)
+        ],
+        temperature: 0.7,
+        max_tokens: 500
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || 'Failed to get response from AI service');
-      }
-
-      const data = await response.json();
-      return data.choices?.[0]?.message?.content || 'I\'m not sure how to respond to that.';
+      return completion.choices[0]?.message?.content || 'I\'m not sure how to respond to that.';
       
     } catch (error) {
-      console.error('API call failed, using mock response', error);
-      throw error;
+      console.error('API call failed:', error);
+      // Return mock response when API fails
+      return getMockResponse();
     }
   };
 
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return;
-
+    
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: input.trim(),
+      content: input,
       role: 'user',
       timestamp: new Date()
     };
@@ -104,11 +111,10 @@ const ChatBot = () => {
     setIsLoading(true);
 
     try {
-      // Try to call the actual API first
       const response = await callOpenRouterAPI(input);
       
       const botMessage: Message = {
-        id: Date.now().toString(),
+        id: (Date.now() + 1).toString(),
         content: response,
         role: 'assistant',
         timestamp: new Date()
@@ -117,22 +123,17 @@ const ChatBot = () => {
       setMessages(prev => [...prev, botMessage]);
       
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Error in handleSendMessage:', error);
       
-      // Fallback to mock response if API fails
-      const botMessage: Message = {
-        id: Date.now().toString(),
-        content: getMockResponse(),
-        role: 'assistant',
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: error instanceof Error ? error.message : 'An unexpected error occurred',
+        role: 'error',
         timestamp: new Date()
       };
       
-      setMessages(prev => [...prev, botMessage]);
-      
-      // Show error toast for actual API errors
-      if (error instanceof Error) {
-        toast.error('Using demo mode: ' + error.message);
-      }
+      setMessages(prev => [...prev, errorMessage]);
+      toast.error('Failed to get response from AI. Using demo responses.');
       
     } finally {
       setIsLoading(false);
