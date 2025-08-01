@@ -46,27 +46,23 @@ const ChatBot = () => {
   }, [messages]);
 
   const callOpenRouterAPI = async (userInput: string): Promise<string> => {
-    const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-    const appName = import.meta.env.VITE_OPENROUTER_APP_NAME || 'Hiring Platform';
+    const apiKey = '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';
+    const siteUrl = window.location.origin;
+    const siteName = 'Hiring Platform';
     
-    if (!apiKey) {
-      console.error('OpenRouter API key is not configured');
-      throw new Error('AI service is not properly configured');
-    }
-
     try {
       const openai = new OpenAI({
         baseURL: 'https://openrouter.ai/api/v1',
         apiKey: apiKey,
         defaultHeaders: {
-          "HTTP-Referer": window.location.origin,
-          "X-Title": appName,
+          'HTTP-Referer': siteUrl,
+          'X-Title': siteName,
         },
         dangerouslyAllowBrowser: true,
       });
 
       const completion = await openai.chat.completions.create({
-        model: 'mistralai/mistral-nemo:free',
+        model: 'deepseek/deepseek-chat-v3-0324:free',
         messages: [
           {
             role: 'system',
@@ -84,7 +80,12 @@ const ChatBot = () => {
           }
         ],
         temperature: 0.7,
-        max_tokens: 500
+        max_tokens: 1000,
+        extra_headers: {
+          'HTTP-Referer': siteUrl,
+          'X-Title': siteName,
+        },
+        extra_body: {}
       });
 
       return completion.choices[0]?.message?.content || 'I\'m not sure how to respond to that.';

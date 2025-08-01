@@ -1,45 +1,37 @@
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
-const axios = require('axios');
+const { OpenAI } = require('openai');
 
 // In-memory storage for demo purposes (replace with a database in production)
 const conversations = new Map();
 
-// Initialize OpenRouter API client
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_API_KEY = process.env.VITE_OPENROUTER_API_KEY;
+// Initialize OpenAI client with OpenRouter
+const client = new OpenAI({
+  baseURL: "https://openrouter.ai/api/v1",
+  apiKey: process.env.VITE_OPENROUTER_API_KEY,
+  defaultHeaders: {
+    "HTTP-Referer": process.env.VITE_OPENROUTER_APP_NAME || 'Hiring Platform',
+    "X-Title": process.env.VITE_OPENROUTER_APP_NAME || 'Hiring Platform',
+  }
+});
 
 const chatController = {
   // Get AI response from OpenRouter API
   async getAIResponse(messages) {
     try {
-      if (!OPENROUTER_API_KEY) {
+      if (!process.env.VITE_OPENROUTER_API_KEY) {
         logger.error('OpenRouter API key is not configured');
         return 'I apologize, but the AI service is currently unavailable.';
       }
 
-      const response = await axios.post(
-        OPENROUTER_API_URL,
-        {
-          model: 'openai/gpt-3.5-turbo',  // Default model, can be overridden per request
-          messages: messages,
-          temperature: 0.7,
-          max_tokens: 1000,
-          top_p: 1.0,
-          frequency_penalty: 0.0,
-          presence_penalty: 0.0,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-            'HTTP-Referer': process.env.VITE_OPENROUTER_APP_NAME || 'Hiring Platform',
-            'X-Title': process.env.VITE_OPENROUTER_APP_NAME || 'Hiring Platform',
-          },
-        }
-      );
+      const completion = await client.chat.completions.create({
+        model: "mistralai/mistral-nemo:free",
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 1000,
+      });
 
-      return response.data.choices[0]?.message?.content || 'I apologize, but I could not generate a response at this time.';
+      return completion.choices[0]?.message?.content || 'I apologize, but I could not generate a response at this time.';
     } catch (error) {
       logger.error('Error getting AI response:', error.response?.data || error.message);
       return 'I apologize, but I encountered an error processing your request.';
