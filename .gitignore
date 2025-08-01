@@ -12,7 +12,7 @@ dist
 dist-ssr
 
 # Environment files
-.env.local
+.env
 .env.development
 .env.production
 !.env  # Allow root .env file
@@ -27,4 +27,5 @@ dist-ssr
 *.ntvs*
 *.njsproj
 *.sln
+*.env
 *.sw?

@@ -5,24 +5,23 @@ const axios = require('axios');
 // In-memory storage for demo purposes (replace with a database in production)
 const conversations = new Map();
 
-// Initialize DeepSeek API client
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+// Initialize OpenRouter API client
+const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_API_KEY = process.env.VITE_OPENROUTER_API_KEY;
 
 const chatController = {
-  // Send a message in a conversation and get AI response
-  // Get AI response from DeepSeek API
+  // Get AI response from OpenRouter API
   async getAIResponse(messages) {
     try {
-      if (!DEEPSEEK_API_KEY) {
-        logger.error('DeepSeek API key is not configured');
+      if (!OPENROUTER_API_KEY) {
+        logger.error('OpenRouter API key is not configured');
         return 'I apologize, but the AI service is currently unavailable.';
       }
 
       const response = await axios.post(
-        DEEPSEEK_API_URL,
+        OPENROUTER_API_URL,
         {
-          model: 'deepseek-chat',
+          model: 'openai/gpt-3.5-turbo',  // Default model, can be overridden per request
           messages: messages,
           temperature: 0.7,
           max_tokens: 1000,
@@ -33,7 +32,9 @@ const chatController = {
         {
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+            'HTTP-Referer': process.env.VITE_OPENROUTER_APP_NAME || 'Hiring Platform',
+            'X-Title': process.env.VITE_OPENROUTER_APP_NAME || 'Hiring Platform',
           },
         }
       );
